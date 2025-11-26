@@ -55,14 +55,33 @@ router.put("/:id", async (req, res) => {
 
 // 4. DELETAR
 router.delete("/:id", async (req, res) => {
+    const idCategoria = req.params.id;
+
     try {
-        // Tenta deletar. Se falhar, provavelmente é porque tem produtos vinculados.
-        await Categoria.destroy({ where: { id_categoria: req.params.id } });
-        res.status(200).json({ message: "Categoria excluída!" });
+        const produtosVinculados = await Produto.count({
+            where: { id_categoria: idCategoria },
+        });
+        if (produtosVinculados > 0) {
+            return res.status(400).json({
+                error: "Esta categoria não pode ser excluída pois possui produtos cadastrados.",
+            });
+        }
+        const linhasApagadas = await Categoria.destroy({
+            where: { id_categoria: idCategoria },
+        });
+
+        if (linhasApagadas > 0) {
+            res.status(200).json({
+                message: "Categoria excluída com sucesso!",
+            });
+        } else {
+            res.status(404).json({ error: "Categoria não encontrada." });
+        }
     } catch (err) {
-        // Erro de Foreign Key (tem produtos usando essa categoria)
+        console.error("Erro ao excluir categoria:", err);
+        // Se der algum outro erro de banco de dados
         res.status(500).json({
-            error: "Não é possível excluir categorias que possuem produtos!",
+            error: "Erro interno ao tentar excluir a categoria.",
         });
     }
 });
